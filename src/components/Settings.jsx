@@ -94,7 +94,10 @@ create table transactions (
 );
 
 -- 2. Aktifkan Fitur Realtime untuk Tabel Transaksi
-alter publication supabase_realtime add table transactions;`;
+alter publication supabase_realtime add table transactions;
+
+-- 3. Aktifkan Identitas Replika Penuh untuk Mendukung Sinkronisasi Hapus (Delete)
+alter table transactions replica identity full;`;
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(sqlSnippet);
