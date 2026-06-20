@@ -64,7 +64,9 @@ const mergeTransactions = (local, remote) => {
   
   // Add local, keeping locally modified/unsynced changes if they are newer
   local.forEach(t => {
-    if (!mergedMap.has(t.id) || t.pending_sync) {
+    // Hanya pertahankan transaksi lokal JIKA statusnya masih mengantri untuk di-sync (pending_sync).
+    // Jika tidak pending_sync dan tidak ada di remote, berarti sudah dihapus dari server.
+    if (t.pending_sync) {
       mergedMap.set(t.id, t);
     }
   });
