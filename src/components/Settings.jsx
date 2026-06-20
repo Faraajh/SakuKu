@@ -16,6 +16,7 @@ import { getSyncId, setSyncId } from '../db';
 export default function Settings({ syncId, onSyncIdChange, transactions, onImport, showToast }) {
   const [dbUrl, setDbUrl] = useState('');
   const [dbKey, setDbKey] = useState('');
+  const [dbSource, setDbSource] = useState('');
   const [tempSyncId, setTempSyncId] = useState(syncId);
   const [isConfigured, setIsConfigured] = useState(false);
   const [copiedSyncId, setCopiedSyncId] = useState(false);
@@ -27,9 +28,11 @@ export default function Settings({ syncId, onSyncIdChange, transactions, onImpor
     if (creds) {
       setDbUrl(creds.url);
       setDbKey(creds.key);
+      setDbSource(creds.source);
       setIsConfigured(true);
     } else {
       setIsConfigured(false);
+      setDbSource('');
     }
   }, []);
 
@@ -190,104 +193,108 @@ alter publication supabase_realtime add table transactions;`;
       </div>
 
       {/* SUPABASE CONNECTION CONFIG */}
-      <div className="glass-panel" style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-          <Database size={18} className="text-teal" />
-          <h3 style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Koneksi Database Supabase</h3>
+      {dbSource !== 'env' && (
+        <div className="glass-panel" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+            <Database size={18} className="text-teal" />
+            <h3 style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Koneksi Database Supabase</h3>
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.4' }}>
+            Masukkan kredensial proyek Supabase Anda. Data disimpan aman di memori browser perangkat ini.
+          </p>
+
+          <form onSubmit={handleSaveCredentials} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="form-group">
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '6px' }}>SUPABASE PROJECT URL</label>
+              <input 
+                type="url" 
+                placeholder="https://xxxx.supabase.co" 
+                value={dbUrl} 
+                onChange={(e) => setDbUrl(e.target.value)}
+                className="input-field"
+                disabled={isConfigured}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '6px' }}>SUPABASE ANON KEY</label>
+              <input 
+                type="password" 
+                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
+                value={dbKey} 
+                onChange={(e) => setDbKey(e.target.value)}
+                className="input-field"
+                disabled={isConfigured}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+              {isConfigured ? (
+                <button 
+                  type="button" 
+                  onClick={handleClearCredentials} 
+                  className="btn btn-danger"
+                  style={{ flex: 1 }}
+                >
+                  <Trash2 size={16} /> Hapus Koneksi
+                </button>
+              ) : (
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
+                >
+                  <Check size={16} /> Simpan Kredensial
+                </button>
+              )}
+            </div>
+          </form>
         </div>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.4' }}>
-          Masukkan kredensial proyek Supabase Anda. Data disimpan aman di memori browser perangkat ini.
-        </p>
-
-        <form onSubmit={handleSaveCredentials} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div className="form-group">
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '6px' }}>SUPABASE PROJECT URL</label>
-            <input 
-              type="url" 
-              placeholder="https://xxxx.supabase.co" 
-              value={dbUrl} 
-              onChange={(e) => setDbUrl(e.target.value)}
-              className="input-field"
-              disabled={isConfigured}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '6px' }}>SUPABASE ANON KEY</label>
-            <input 
-              type="password" 
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
-              value={dbKey} 
-              onChange={(e) => setDbKey(e.target.value)}
-              className="input-field"
-              disabled={isConfigured}
-              required
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-            {isConfigured ? (
-              <button 
-                type="button" 
-                onClick={handleClearCredentials} 
-                className="btn btn-danger"
-                style={{ flex: 1 }}
-              >
-                <Trash2 size={16} /> Hapus Koneksi
-              </button>
-            ) : (
-              <button 
-                type="submit" 
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-              >
-                <Check size={16} /> Simpan Kredensial
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
+      )}
 
       {/* SQL SCHEMA COPY Snippet */}
-      <div className="glass-panel" style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-          <Code size={18} className="text-amber" />
-          <h3 style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Langkah Setup Database Supabase</h3>
-        </div>
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: '1.4' }}>
-          Salin dan jalankan skrip SQL di bawah ini di dalam **SQL Editor** pada dashboard Supabase Anda:
-        </p>
+      {dbSource !== 'env' && (
+        <div className="glass-panel" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <Code size={18} className="text-amber" />
+            <h3 style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Langkah Setup Database Supabase</h3>
+          </div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: '1.4' }}>
+            Salin dan jalankan skrip SQL di bawah ini di dalam **SQL Editor** pada dashboard Supabase Anda:
+          </p>
 
-        <div style={{ position: 'relative' }}>
-          <pre style={{
-            background: 'var(--bg-primary)',
-            color: 'var(--text-secondary)',
-            padding: '12px',
-            borderRadius: '10px',
-            fontSize: '0.7rem',
-            overflowX: 'auto',
-            border: '1px solid var(--border-color)',
-            maxHeight: '150px',
-            fontFamily: 'monospace'
-          }}>
-            {sqlSnippet}
-          </pre>
-          <button 
-            onClick={handleCopySql}
-            className="btn btn-secondary btn-circle"
-            style={{
-              position: 'absolute',
-              top: '8px',
-              right: '8px',
-              width: '32px',
-              height: '32px',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            {copiedSql ? <Check size={14} className="text-emerald" /> : <Copy size={14} />}
-          </button>
+          <div style={{ position: 'relative' }}>
+            <pre style={{
+              background: 'var(--bg-primary)',
+              color: 'var(--text-secondary)',
+              padding: '12px',
+              borderRadius: '10px',
+              fontSize: '0.7rem',
+              overflowX: 'auto',
+              border: '1px solid var(--border-color)',
+              maxHeight: '150px',
+              fontFamily: 'monospace'
+            }}>
+              {sqlSnippet}
+            </pre>
+            <button 
+              onClick={handleCopySql}
+              className="btn btn-secondary btn-circle"
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                width: '32px',
+                height: '32px',
+                boxShadow: 'var(--shadow-sm)'
+              }}
+            >
+              {copiedSql ? <Check size={14} className="text-emerald" /> : <Copy size={14} />}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* DATA BACKUP MANAGEMENT */}
       <div className="glass-panel" style={{ padding: '20px' }}>

@@ -1,5 +1,16 @@
 import { getSupabaseClient } from './supabaseClient';
 
+// Helper to sort transactions (newest date first, then newest created_at first)
+const sortTransactions = (txs) => {
+  return [...txs].sort((a, b) => {
+    const dateDiff = new Date(b.date) - new Date(a.date);
+    if (dateDiff !== 0) return dateDiff;
+    const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return timeB - timeA;
+  });
+};
+
 // Generate a random sync ID for partition key
 const generateSyncId = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -58,7 +69,7 @@ const mergeTransactions = (local, remote) => {
     }
   });
 
-  return Array.from(mergedMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+  return sortTransactions(Array.from(mergedMap.values()));
 };
 
 let realtimeSubscription = null;
@@ -118,7 +129,7 @@ export const db = {
     };
 
     // Update local immediately (optimistic UI)
-    const updated = [newTx, ...localTxs].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const updated = sortTransactions([newTx, ...localTxs]);
     saveLocalTransactions(updated);
     onUpdate(updated);
 
@@ -236,7 +247,7 @@ export const db = {
             updated = updated.filter(t => t.id !== payload.old.id);
           }
 
-          updated.sort((a, b) => new Date(b.date) - new Date(a.date));
+          updated = sortTransactions(updated);
           saveLocalTransactions(updated);
           onUpdate(updated);
         }
