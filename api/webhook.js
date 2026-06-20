@@ -1,24 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Helper to parse transaction from raw notification text
-function parseTransaction(text) {
+// Initialize Gemini
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+// Fallback Regex parser just in case AI fails or is rate-limited
+function fallbackParseTransaction(text) {
   const textLower = text.toLowerCase();
-  
-  // 1. Amount detection
   let amount = 0;
   
-  // Try k-abbreviation (e.g. 50k, 15.5k)
   const kMatch = textLower.match(/(\d+(?:\.\d+)?)\s*k\b/);
   if (kMatch) {
     amount = parseFloat(kMatch[1]) * 1000;
   } else {
-    // Remove "Rp", dots, and clean text
     const cleanText = textLower.replace(/rp/g, "").replace(/\./g, "");
     const numbers = cleanText.match(/\d+/g);
     if (numbers) {
       const validNumbers = numbers
         .map(n => parseInt(n, 10))
-        .filter(num => num.toString().length <= 9); // Ignore long numbers (like account/rekening numbers)
+        .filter(num => num.toString().length <= 9);
       if (validNumbers.length > 0) {
         amount = Math.max(...validNumbers);
       }
@@ -27,14 +28,12 @@ function parseTransaction(text) {
 
   if (amount === 0) return null;
 
-  // 2. Type detection
   let type = "expense";
   const incomeKeywords = ["gaji", "pemasukan", "masuk", "terima", "diterima", "transfer dari", "side", "sampingan", "bonus", "angpao", "hibah"];
   if (incomeKeywords.some(k => textLower.includes(k))) {
     type = "income";
   }
 
-  // 3. Category detection
   let category = "Lainnya";
   const categoryMap = {
     "Makanan": ["makan", "minum", "kopi", "resto", "warung", "bakso", "nasi", "burger", "pizza", "starbucks", "indomaret", "alfamart", "cemilan", "snack"],
@@ -69,8 +68,64 @@ function parseTransaction(text) {
   return { amount, type, category };
 }
 
+// Main AI Parser
+async function parseTransactionAI(text) {
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    const prompt = `
+Anda adalah asisten pencatat keuangan cerdas. Analisis teks notifikasi berikut dan ekstrak data transaksinya.
+
+Teks Notifikasi: "${text}"
+
+Tugas:
+1. amount: Nominal transaksi (dalam bentuk angka integer, misal: 75000). Jika tidak ada, kembalikan 0.
+2. type: Tentukan apakah ini "expense" (pengeluaran) atau "income" (pemasukan).
+3. category: Pilih SATU dari daftar berikut yang paling cocok berdasarkan nama merchant atau konteks:
+   - Jika expense: "Makanan", "Transportasi", "Belanja", "Utilitas", "Hiburan", "Lainnya"
+   - Jika income: "Gaji", "Investasi", "Sampingan", "Pemberian", "Lainnya"
+   Jika ragu, ambigu, atau nama merchant tidak dikenali, WAJIB gunakan "Lainnya".
+
+Berikan output HANYA dalam format JSON dengan struktur persis seperti ini:
+{
+  "amount": 75000,
+  "type": "expense",
+  "category": "Makanan"
+}`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const jsonStr = response.text();
+    const parsed = JSON.parse(jsonStr);
+
+    if (!parsed.amount || parsed.amount === 0) return null;
+    
+    // Ensure safety bounds for fields
+    const validExpense = ["Makanan", "Transportasi", "Belanja", "Utilitas", "Hiburan", "Lainnya"];
+    const validIncome = ["Gaji", "Investasi", "Sampingan", "Pemberian", "Lainnya"];
+    
+    const finalType = parsed.type === 'income' ? 'income' : 'expense';
+    let finalCategory = parsed.category || 'Lainnya';
+    
+    if (finalType === 'expense' && !validExpense.includes(finalCategory)) finalCategory = 'Lainnya';
+    if (finalType === 'income' && !validIncome.includes(finalCategory)) finalCategory = 'Lainnya';
+
+    return {
+      amount: parseInt(parsed.amount, 10),
+      type: finalType,
+      category: finalCategory
+    };
+  } catch (error) {
+    console.error("Gemini AI Parsing Error:", error);
+    // Fallback securely to our old regex engine
+    return fallbackParseTransaction(text);
+  }
+}
+
 export default async function handler(req, res) {
-  // Allow only POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -88,8 +143,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Supabase URL or Key not configured' });
   }
 
-  // Parse transaction data
-  const parsed = parseTransaction(text);
+  // Use AI to parse transaction data
+  const parsed = await parseTransactionAI(text);
+  
   if (!parsed) {
     return res.status(422).json({ error: 'Could not extract valid transaction amount from text' });
   }
