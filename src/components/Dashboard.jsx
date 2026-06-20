@@ -250,7 +250,32 @@ export default function Dashboard({ transactions, onDelete, onAddClick }) {
                     </span>
                   )}
                   <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-light)', marginTop: '2px' }}>
-                    {tx.date}
+                    {(() => {
+                      try {
+                        const dateStr = tx.date || tx.created_at;
+                        if (!dateStr) return '';
+                        
+                        // Parse the calendar date part (YYYY-MM-DD)
+                        const rawDate = dateStr.split('T')[0];
+                        // Get the time part from created_at in UTC, or default to 00:00
+                        const timeStr = tx.created_at ? tx.created_at.split('T')[1].substring(0, 5) : '00:00';
+                        
+                        // Create a proper date object explicitly in UTC
+                        const d = new Date(`${rawDate}T${timeStr}:00Z`);
+                        
+                        if (isNaN(d.getTime())) return dateStr;
+                        return new Intl.DateTimeFormat('id-ID', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          timeZone: 'Asia/Jakarta'
+                        }).format(d) + ' WIB';
+                      } catch (e) {
+                        return tx.date;
+                      }
+                    })()}
                   </span>
                 </div>
               </div>
