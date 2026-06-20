@@ -8,13 +8,16 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 // Fallback Regex parser just in case AI fails or is rate-limited
 function fallbackParseTransaction(text) {
   const textLower = text.toLowerCase();
+  
+  // Cut off text after "saldo" so we don't accidentally extract the remaining balance
+  const textWithoutSaldo = textLower.split("saldo")[0];
   let amount = 0;
   
-  const kMatch = textLower.match(/(\d+(?:\.\d+)?)\s*k\b/);
+  const kMatch = textWithoutSaldo.match(/(\d+(?:\.\d+)?)\s*k\b/);
   if (kMatch) {
     amount = parseFloat(kMatch[1]) * 1000;
   } else {
-    const cleanText = textLower.replace(/rp/g, "").replace(/\./g, "");
+    const cleanText = textWithoutSaldo.replace(/rp/g, "").replace(/\./g, "");
     const numbers = cleanText.match(/\d+/g);
     if (numbers) {
       const validNumbers = numbers
@@ -82,7 +85,7 @@ Anda adalah asisten pencatat keuangan cerdas. Analisis teks notifikasi berikut d
 Teks Notifikasi: "${text}"
 
 Tugas:
-1. amount: Nominal transaksi (dalam bentuk angka integer, misal: 75000). Jika tidak ada, kembalikan 0.
+1. amount: Nominal uang yang BENAR-BENAR dibayarkan atau diterima pada transaksi ini (dalam bentuk angka integer, misal: 20960). PENTING: JANGAN mengambil angka "sisa saldo" (balance) atau angka tanggal.
 2. type: Tentukan apakah ini "expense" (pengeluaran) atau "income" (pemasukan).
 3. category: Pilih SATU dari daftar berikut yang paling cocok berdasarkan nama merchant atau konteks:
    - Jika expense: "Makanan", "Transportasi", "Belanja", "Utilitas", "Hiburan", "Lainnya"
