@@ -81,11 +81,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing sync_id or text in request body' });
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://vcoupegsuapuircfwrpe.supabase.co';
+  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_tUnOd-ikngepqoaWWZpc4A_bVWaQou1';
 
   if (!supabaseUrl || !supabaseKey) {
-    return res.status(500).json({ error: 'Supabase URL or Key not configured in Vercel Environment Variables' });
+    return res.status(500).json({ error: 'Supabase URL or Key not configured' });
   }
 
   // Parse transaction data
