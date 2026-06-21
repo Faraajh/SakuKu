@@ -285,7 +285,8 @@ export default function Dashboard({ transactions, onDelete, onAddClick }) {
                 <span style={{
                   fontWeight: 700,
                   fontSize: '1rem',
-                  color: tx.type === 'income' ? 'var(--emerald)' : 'var(--rose)'
+                  color: tx.type === 'income' ? 'var(--emerald)' : 'var(--rose)',
+                  whiteSpace: 'nowrap'
                 }}>
                   {tx.type === 'income' ? '+' : '-'} {formatIDR(tx.amount).replace('Rp', '')}
                 </span>
