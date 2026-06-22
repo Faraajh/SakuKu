@@ -14,11 +14,15 @@ function fallbackParseTransaction(text) {
   const textWithoutSaldo = textLower.split("saldo")[0];
   let amount = 0;
   
+  const rpMatch = textWithoutSaldo.match(/rp\s*([\d\.]+)/);
   const kMatch = textWithoutSaldo.match(/(\d+(?:\.\d+)?)\s*k\b/);
-  if (kMatch) {
+  
+  if (rpMatch) {
+    amount = parseFloat(rpMatch[1].replace(/\./g, ""));
+  } else if (kMatch) {
     amount = parseFloat(kMatch[1]) * 1000;
   } else {
-    const cleanText = textWithoutSaldo.replace(/rp/g, "").replace(/\./g, "");
+    const cleanText = textWithoutSaldo.replace(/\./g, "");
     const numbers = cleanText.match(/\d+/g);
     if (numbers) {
       const validNumbers = numbers
